@@ -11,14 +11,23 @@ from sklearn.metrics import classification_report, confusion_matrix
 st.title("Data Analysis and Machine Learning App")
 
 # File uploader
-uploaded_file = st.file_uploader("Upload your dataset (CSV format)", type="csv")
-if uploaded_file is not None:
-    try:
-        # Attempt to read the CSV file
-        data_info = pd.read_csv(uploaded_file, encoding="ISO-8859-1", errors="replace")
-        st.write("Dataset Preview:")
-        st.dataframe(data_info.head())
+# Page configuration
+st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
 
+# Function to load data
+@st.cache
+def load_data(file):
+    data = pd.read_csv(file)
+    return data
+
+# Sidebar for file upload
+st.sidebar.title("Upload Dataset")
+uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
+
+    if uploaded_file:
+        data = load_data(uploaded_file).copy()
+        st.title("Uploaded Dataset")
+        st.write(data.head())
         # Proceed only if `data_info` is not empty
         if not data_info.empty:
             # Data Cleaning
