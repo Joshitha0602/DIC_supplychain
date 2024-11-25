@@ -76,10 +76,10 @@ if uploaded_file:
     # Visualizations
     st.header("Visualizations")
 
-    # Correlation Heatmap with Numeric Columns Only
+    # Correlation Heatmap with Proper Row/Column Names
 if st.sidebar.checkbox("Show Correlation Heatmap"):
     st.subheader("Correlation Heatmap")
-    
+
     # Select only numeric columns
     numeric_data = data.select_dtypes(include=["int64", "float64"])
     
@@ -88,12 +88,13 @@ if st.sidebar.checkbox("Show Correlation Heatmap"):
         plt.figure(figsize=(10, 6))
         sns.heatmap(
             corr,
-            annot=True,
+            annot=True,  # Annotate with correlation values
             cmap="coolwarm",
             fmt=".2f",
-            xticklabels=corr.columns,
-            yticklabels=corr.columns
+            xticklabels=numeric_data.columns,  # Use column names for x-axis
+            yticklabels=numeric_data.columns   # Use column names for y-axis
         )
+        plt.title("Correlation Heatmap with Column Names")
         st.pyplot(plt)
     else:
         st.write("No numeric columns available for correlation heatmap.")
