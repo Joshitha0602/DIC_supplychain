@@ -7,24 +7,22 @@ from sklearn.linear_model import LinearRegression
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, confusion_matrix
-import chardet
+#import chardet
 
 st.title("Data Analysis and Machine Learning App")
 
 # File uploader
+# File uploader without chardet
 uploaded_file = st.file_uploader("Upload your dataset (CSV format)", type="csv")
 if uploaded_file is not None:
     try:
-        # Detect file encoding
-        raw_data = uploaded_file.read()
-        detected_encoding = chardet.detect(raw_data)
-        encoding = detected_encoding["encoding"]
-
-        # Load the dataset
-        data_info = pd.read_csv(uploaded_file, encoding=encoding, errors="replace")
-        st.write(f"Detected Encoding: {encoding}")
+        # Attempt to read the CSV file with a common encoding
+        data_info = pd.read_csv(uploaded_file, encoding="ISO-8859-1", errors="replace")
         st.write("Dataset Preview:")
         st.dataframe(data_info.head())
+    except Exception as e:
+        st.error(f"Error reading the file: {e}")
+
 
         # Data Cleaning
         st.header("Data Cleaning")
