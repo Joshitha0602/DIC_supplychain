@@ -14,14 +14,14 @@ st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
 st.title("Data Analysis and Machine Learning App")
 
 # Function to load data
-@st.cache
+@st.cache_data
 def load_data(file):
     data = pd.read_csv(file)
     return data
 
 # Sidebar for file upload
 st.sidebar.title("Upload Dataset")
-uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
+uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
 
 if uploaded_file:
     try:
