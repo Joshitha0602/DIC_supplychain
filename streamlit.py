@@ -24,7 +24,7 @@ def load_data(file):
 st.sidebar.title("Upload Dataset")
 uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
 
-    if uploaded_file:
+if uploaded_file:
         data = load_data(uploaded_file).copy()
         st.title("Uploaded Dataset")
         st.write(data.head())
