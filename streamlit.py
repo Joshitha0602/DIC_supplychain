@@ -1,116 +1,103 @@
+# Importing Libraries
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
-# Page Configuration
-st.set_page_config(page_title="Data Analysis and Modeling", layout="wide")
+# Function to clean data
+def clean_data(data):
+    # Dropping duplicates
+    data = data.drop_duplicates()
+    # Handling missing values by filling with mean (numeric) or mode (categorical)
+    for col in data.columns:
+        if data[col].isnull().sum() > 0:
+            if data[col].dtype in ["int64", "float64"]:
+                data[col].fillna(data[col].mean(), inplace=True)
+            else:
+                data[col].fillna(data[col].mode()[0], inplace=True)
+    return data
 
-# File Uploader
-st.sidebar.title("Upload Dataset")
-uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
+# Function for visualizations
+def visualize_data(data, viz_type):
+    if viz_type == "Correlation Heatmap":
+        numeric_data = data.select_dtypes(include=["float64", "int64"])
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(numeric_data.corr(), annot=True, cmap="coolwarm")
+        st.pyplot(plt)
 
-if uploaded_file:
-    # Load Data
-    data = pd.read_csv(uploaded_file)
+    elif viz_type == "Histograms":
+        numeric_data = data.select_dtypes(include=["float64", "int64"])
+        numeric_data.hist(bins=20, figsize=(15, 10))
+        st.pyplot(plt)
 
-    # Display Dataset
-    st.header("Dataset Overview")
-    st.write(data.head())
+    elif viz_type == "Scatter Plot":
+        numeric_cols = data.select_dtypes(include=["float64", "int64"]).columns
+        col_x = st.sidebar.selectbox("Select X-axis", numeric_cols)
+        col_y = st.sidebar.selectbox("Select Y-axis", numeric_cols)
+        plt.scatter(data[col_x], data[col_y])
+        plt.xlabel(col_x)
+        plt.ylabel(col_y)
+        st.pyplot(plt)
+
+# Function for modeling
+def linear_regression_model(data, target_col, feature_cols):
+    X = data[feature_cols]
+    y = data[target_col]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    r2_score = model.score(X_test, y_test)
+
+    # Display Results
+    st.write(f"Model Coefficients: {model.coef_}")
+    st.write(f"Intercept: {model.intercept_}")
+    st.write(f"R² Score: {r2_score}")
+
+    # Scatter Plot
+    predictions = model.predict(X_test)
+    plt.scatter(y_test, predictions)
+    plt.xlabel("Actual Values")
+    plt.ylabel("Predicted Values")
+    st.pyplot(plt)
+
+# Streamlit App Layout
+st.title("Generalized Data Analysis and Modeling")
+uploaded_file = st.file_uploader("Upload your CSV File", type="csv")
+
+if uploaded_file is not None:
+    # Load Dataset
+    df = pd.read_csv(uploaded_file)
+    st.write("### Preview of Dataset")
+    st.write(df.head())
 
     # Data Cleaning
-    st.sidebar.subheader("Data Cleaning")
-    st.sidebar.write("Automatically handle missing values, drop unnecessary columns, etc.")
-
-    if st.sidebar.button("Clean Data"):
-        # Drop columns with all null values
-        data.dropna(axis=1, how='all', inplace=True)
-
-        # Drop duplicates
-        data.drop_duplicates(inplace=True)
-
-        # Convert column names to lowercase and replace spaces with underscores
-        data.columns = data.columns.str.lower().str.replace(" ", "_")
-
-        # Handling missing values
-        data.fillna(data.mean(numeric_only=True), inplace=True)
-
-        st.success("Data cleaned successfully!")
-        st.write(data.head())
+    st.write("### Cleaning Data")
+    df_cleaned = clean_data(df)
+    st.write("Data cleaned successfully!")
 
     # Data Visualization
-    st.header("Data Visualization")
-    st.write("Choose visualizations from the sidebar.")
+    st.sidebar.title("Visualization Options")
+    viz_type = st.sidebar.selectbox("Choose a Visualization", ["None", "Correlation Heatmap", "Histograms", "Scatter Plot"])
+    if viz_type != "None":
+        st.write(f"### {viz_type}")
+        visualize_data(df_cleaned, viz_type)
 
-    viz_option = st.sidebar.selectbox(
-        "Choose a Visualization",
-        ["Correlation Heatmap", "Histograms", "Bar Plots", "Scatter Plots"]
-    )
+    # Modeling
+    st.sidebar.title("Modeling Options")
+    model_type = st.sidebar.selectbox("Choose a Model", ["None", "Linear Regression"])
+    if model_type == "Linear Regression":
+        st.write("### Linear Regression Model")
+        target_col = st.selectbox("Select Target Variable", df_cleaned.select_dtypes(include=["float64", "int64"]).columns)
+        feature_cols = st.multiselect("Select Feature Columns", df_cleaned.select_dtypes(include=["float64", "int64"]).columns)
 
-    if viz_option == "Correlation Heatmap":
-        st.subheader("Correlation Heatmap")
-        corr = data.select_dtypes(include=np.number).corr()
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(corr, annot=True, cmap="coolwarm")
-        st.pyplot(plt)
-
-    elif viz_option == "Histograms":
-        st.subheader("Histograms")
-        numeric_cols = data.select_dtypes(include=np.number).columns
-        data[numeric_cols].hist(bins=20, figsize=(16, 12))
-        st.pyplot(plt)
-
-    elif viz_option == "Bar Plots":
-        st.subheader("Bar Plots")
-        categorical_cols = data.select_dtypes(include="object").columns
-        selected_col = st.selectbox("Choose a Categorical Column", categorical_cols)
-        if selected_col:
-            avg = data.groupby(selected_col).mean()
-            avg.plot(kind="bar", figsize=(10, 6))
-            st.pyplot(plt)
-
-    elif viz_option == "Scatter Plots":
-        st.subheader("Scatter Plots")
-        numeric_cols = data.select_dtypes(include=np.number).columns
-        x_axis = st.selectbox("X-Axis", numeric_cols)
-        y_axis = st.selectbox("Y-Axis", numeric_cols)
-        if x_axis and y_axis:
-            plt.scatter(data[x_axis], data[y_axis])
-            plt.xlabel(x_axis)
-            plt.ylabel(y_axis)
-            st.pyplot(plt)
-
-    # Linear Regression Example
-    st.header("Linear Regression")
-    st.write("Build a simple linear regression model.")
-
-    target_var = st.selectbox("Choose Target Variable", data.select_dtypes(include=np.number).columns)
-    features = st.multiselect("Choose Features", data.select_dtypes(include=np.number).columns)
-
-    if st.button("Train Linear Regression Model"):
-        if target_var and features:
-            X = data[features]
-            y = data[target_var]
-
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            model = LinearRegression()
-            model.fit(X_train, y_train)
-
-            st.write("Model Coefficients:", model.coef_)
-            st.write("Model Intercept:", model.intercept_)
-            st.write("Model R² Score:", model.score(X_test, y_test))
-
-            # Scatter Plot of Predictions
-            predictions = model.predict(X_test)
-            plt.scatter(y_test, predictions)
-            plt.xlabel("True Values")
-            plt.ylabel("Predictions")
-            st.pyplot(plt)
-
-    # Footer
-    st.sidebar.info("Streamlit app for data analysis and machine learning.")
+        if st.button("Run Model"):
+            if target_col and feature_cols:
+                linear_regression_model(df_cleaned, target_col, feature_cols)
+            else:
+                st.warning("Please select a target variable and at least one feature.")
 else:
     st.write("Please upload a CSV file to proceed.")
