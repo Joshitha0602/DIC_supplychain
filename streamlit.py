@@ -7,26 +7,37 @@ from sklearn.linear_model import LinearRegression
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, confusion_matrix
+import chardet
 
 # Page configuration
 st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
 
 st.title("Data Analysis and Machine Learning App")
 
-
+# Function to load data
 @st.cache_data
 def load_data(file):
     try:
-        # Attempt to read with utf-8 encoding
-        data = pd.read_csv(file, encoding="utf-8")
-    except UnicodeDecodeError:
-        # If utf-8 fails, try ISO-8859-1 or latin1
-        data = pd.read_csv(file, encoding="ISO-8859-1")
-    return data
+        # Detect encoding
+        raw_data = file.read()
+        result = chardet.detect(raw_data)
+        encoding = result["encoding"]
+
+        # Reload file with detected encoding
+        file.seek(0)  # Reset file pointer
+        data = pd.read_csv(file, encoding=encoding)
+        return data
+    except Exception as e:
+        st.error(f"Failed to load file: {e}")
+        return None
+
+# Sidebar for file upload
+st.sidebar.title("Upload Dataset")
+uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
 
 if uploaded_file:
-    try:
-        data = load_data(uploaded_file).copy()
+    data = load_data(uploaded_file)
+    if data is not None:
         st.title("Uploaded Dataset")
         st.write(data.head())
         
@@ -145,7 +156,7 @@ if uploaded_file:
                         st.error("Please select at least 2 features for K-Nearest Neighbors.")
         else:
             st.error("Uploaded dataset is empty. Please check your file.")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+    else:
+        st.error("Failed to load the dataset.")
 else:
     st.warning("Please upload a dataset to proceed.")
