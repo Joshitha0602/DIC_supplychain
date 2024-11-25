@@ -20,7 +20,7 @@ uploaded_file = st.file_uploader("Upload your dataset", type=["csv"])
 
 if uploaded_file:
     # Load dataset
-    data = pd.read_csv(uploaded_file)
+    data = pd.read_csv(uploaded_file, encoding='ISO-8859-1')  # Specify encoding
     st.write("Data Preview:")
     st.write(data.head())
 
