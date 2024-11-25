@@ -2,123 +2,96 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 from sklearn.cluster import KMeans
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
 
-# Title and File Upload
-st.title("Generalized Data Analysis and Visualization App")
-uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
+# 1. Set up Streamlit App
+st.title("Supply Chain Data Analysis")
+st.sidebar.header("Options")
 
-if uploaded_file is not None:
-    # Load Data
-    data = pd.read_csv(uploaded_file, encoding='ISO-8859-1')
-    st.write("Data Preview:")
-    st.dataframe(data.head())
+# 2. File Upload
+uploaded_file = st.sidebar.file_uploader("Upload your dataset (CSV)", type="csv")
+if uploaded_file:
+    data = pd.read_csv(uploaded_file)
+    st.write("Dataset Preview:")
+    st.write(data.head())
 
-    # Data Cleaning
+    # 3. Data Cleaning Summary
     st.header("Data Cleaning")
-    if st.checkbox("Display Missing Values"):
-        missing_values = data.isnull().sum()
-        st.write(missing_values)
+    st.write(f"Initial data shape: {data.shape}")
+    data.dropna(inplace=True)
+    st.write(f"Data shape after dropping missing values: {data.shape}")
 
-    if st.checkbox("Drop Columns"):
-        cols_to_drop = st.multiselect("Select columns to drop", data.columns)
-        if cols_to_drop:
-            data.drop(columns=cols_to_drop, inplace=True)
-            st.write("Updated Data Preview:")
-            st.dataframe(data.head())
+    # 4. Exploratory Data Analysis
+    st.header("Exploratory Data Analysis (EDA)")
 
-    # Descriptive Stats
-    st.header("Descriptive Statistics")
-    if st.checkbox("Show Descriptive Statistics"):
-        st.write(data.describe())
+    # Select feature for visualization
+    numeric_columns = data.select_dtypes(include=["float64", "int64"]).columns
+    feature = st.selectbox("Select feature for visualization", options=numeric_columns)
 
-    # Visualizations
-    st.header("Visualizations")
-    if st.checkbox("Correlation Heatmap"):
-        numeric_cols = data.select_dtypes(include=['float', 'int']).columns
-        if not numeric_cols.empty:
-            corr = data[numeric_cols].corr()
-            plt.figure(figsize=(10, 6))
-            sns.heatmap(corr, annot=True, cmap='coolwarm')
-            st.pyplot(plt)
-        else:
-            st.write("No numeric columns available for correlation heatmap.")
+    if feature:
+        fig, ax = plt.subplots()
+        sns.histplot(data[feature], kde=True, ax=ax)
+        st.pyplot(fig)
 
-    if st.checkbox("Histograms for Numeric Columns"):
-        numeric_cols = data.select_dtypes(include=['float', 'int']).columns
-        if not numeric_cols.empty:
-            data[numeric_cols].hist(bins=20, figsize=(10, 6))
-            plt.tight_layout()
-            st.pyplot(plt)
-        else:
-            st.write("No numeric columns available for histograms.")
+    # Correlation Heatmap
+    if st.checkbox("Show Correlation Heatmap"):
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(data.corr(), annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig)
 
-    # Machine Learning
+    # 5. Machine Learning
     st.header("Machine Learning")
-    if st.checkbox("Linear Regression"):
-        numeric_cols = data.select_dtypes(include=['float', 'int']).columns
-        if len(numeric_cols) >= 2:
-            features = st.multiselect("Select features for X", numeric_cols)
-            target = st.selectbox("Select target for Y", numeric_cols)
-            if features and target:
-                X = data[features].dropna()
-                y = data[target].dropna()
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-                model = LinearRegression()
-                model.fit(X_train, y_train)
-                predictions = model.predict(X_test)
+    # User chooses an ML model
+    model_choice = st.selectbox("Choose a Model", ["Linear Regression", "K-Means Clustering"])
 
-                plt.scatter(X_test[features[0]], y_test, color='yellow', label='Actual')
-                plt.scatter(X_test[features[0]], predictions, color='blue', label='Predicted')
-                plt.title(f'Linear Regression: {features[0]} vs {target}')
-                plt.legend()
-                st.pyplot(plt)
-                st.write("Model Performance:")
-                st.write(f"R² Score: {model.score(X_test, y_test)}")
-        else:
-            st.write("Insufficient numeric columns for regression.")
+    if model_choice == "Linear Regression":
+        # Select features and target
+        target = st.selectbox("Select Target Variable", options=numeric_columns)
+        features = st.multiselect("Select Feature Variables", options=numeric_columns)
 
-    if st.checkbox("K-Means Clustering"):
-        numeric_cols = data.select_dtypes(include=['float', 'int']).columns
-        if len(numeric_cols) >= 2:
-            features = st.multiselect("Select features for clustering", numeric_cols)
-            if features:
-                k = st.slider("Select number of clusters (k)", min_value=2, max_value=10, value=3)
-                kmeans = KMeans(n_clusters=k, random_state=42)
-                data['Cluster'] = kmeans.fit_predict(data[features].dropna())
+        if target and features:
+            X = data[features]
+            y = data[target]
 
-                plt.scatter(data[features[0]], data[features[1]], c=data['Cluster'], cmap='viridis')
-                plt.title("K-Means Clustering")
-                st.pyplot(plt)
-                st.write(f"Inertia (WCSS): {kmeans.inertia_}")
-        else:
-            st.write("Insufficient numeric columns for clustering.")
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    if st.checkbox("Decision Tree Classifier"):
-        categorical_cols = data.select_dtypes(include=['object']).columns
-        numeric_cols = data.select_dtypes(include=['float', 'int']).columns
-        if numeric_cols.any() and categorical_cols.any():
-            features = st.multiselect("Select numeric features for classification", numeric_cols)
-            target = st.selectbox("Select target (categorical) for classification", categorical_cols)
-            if features and target:
-                X = data[features].dropna()
-                y = data[target].dropna()
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            model = LinearRegression()
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
 
-                dt = DecisionTreeClassifier(max_depth=3, random_state=42)
-                dt.fit(X_train, y_train)
+            st.write("Model Coefficients:", model.coef_)
+            st.write("Intercept:", model.intercept_)
+            st.write("R² Score:", model.score(X_test, y_test))
 
-                plt.figure(figsize=(12, 8))
-                plot_tree(dt, feature_names=features, class_names=dt.classes_, filled=True)
-                st.pyplot(plt)
-                st.write(f"Accuracy: {dt.score(X_test, y_test)}")
-        else:
-            st.write("Insufficient columns for classification.")
+            # Visualization
+            fig, ax = plt.subplots()
+            ax.scatter(y_test, y_pred)
+            ax.set_xlabel("Actual")
+            ax.set_ylabel("Predicted")
+            ax.set_title("Linear Regression Results")
+            st.pyplot(fig)
 
+    elif model_choice == "K-Means Clustering":
+        # Select clustering features
+        features = st.multiselect("Select Features for Clustering", options=numeric_columns)
+        if features:
+            X = data[features]
+            kmeans = KMeans(n_clusters=3, random_state=42)
+            data["Cluster"] = kmeans.fit_predict(X)
+
+            # Show Cluster Visualization
+            st.write("Cluster Centers:", kmeans.cluster_centers_)
+            fig, ax = plt.subplots()
+            scatter = ax.scatter(data[features[0]], data[features[1]], c=data["Cluster"], cmap="viridis")
+            ax.set_xlabel(features[0])
+            ax.set_ylabel(features[1])
+            ax.set_title("K-Means Clustering")
+            st.pyplot(fig)
+
+# Streamlit app instructions
 else:
-    st.info("Please upload a CSV file to proceed.")
+    st.write("Upload a dataset to begin.")
