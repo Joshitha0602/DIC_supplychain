@@ -13,11 +13,17 @@ import numpy as np
 st.title("Data Analysis and ML App")
 
 # File uploader
-uploaded_file = st.file_uploader("Upload CSV file", type="csv")
+# File uploader
+uploaded_file = st.file_uploader("Upload your dataset (CSV format)", type="csv")
 if uploaded_file is not None:
-    data_info = pd.read_csv(uploaded_file).copy()
-    st.write("Dataset Preview:")
-    st.dataframe(data_info.head())
+    try:
+        # Attempt to read the CSV file with a specific encoding
+        data_info = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
+        st.write("Dataset Preview:")
+        st.dataframe(data_info.head())
+    except UnicodeDecodeError:
+        st.error("Unable to read the file. Please check the file encoding.")
+
 
     # Data cleaning options
     st.header("Data Cleaning")
