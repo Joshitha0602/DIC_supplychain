@@ -13,9 +13,9 @@ import numpy as np
 st.title("Data Analysis and ML App")
 
 # File uploader
-uploaded_file = st.file_uploader("/Users/joshithasaiuppalapati/Downloads/joshitha_ckethine_phase_2", type="csv")
+uploaded_file = st.file_uploader("Upload CSV file", type="csv")
 if uploaded_file is not None:
-    data_info = pd.read_csv(uploaded_file)
+    data_info = pd.read_csv(uploaded_file).copy()
     st.write("Dataset Preview:")
     st.dataframe(data_info.head())
 
