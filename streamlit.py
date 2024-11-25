@@ -76,20 +76,29 @@ if uploaded_file:
     # Visualizations
     st.header("Visualizations")
 
-    # Correlation Heatmap
-    if st.sidebar.checkbox("Show Correlation Heatmap"):
-        st.subheader("Correlation Heatmap")
-        corr = data.select_dtypes(include=["float", "int"]).corr()
-        plt.figure(figsize=(10, 6))
-        sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f")
+    # Correlation Heatmap with proper row/column labels
+if st.sidebar.checkbox("Show Correlation Heatmap"):
+    st.subheader("Correlation Heatmap")
+    corr = data.corr()
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(
+        corr,
+        annot=True,
+        cmap="coolwarm",
+        fmt=".2f",
+        xticklabels=corr.columns,  # Ensure proper column labels
+        yticklabels=corr.columns   # Ensure proper row labels
+    )
+    st.pyplot(plt)
+    
+    # Histogram for Numeric Columns
+if st.sidebar.checkbox("Show Histograms"):
+    st.subheader("Histograms")
+    numeric_cols = data.select_dtypes(include=["float", "int"]).columns
+    for col in numeric_cols:
+        plt.figure(figsize=(8, 4))
+        sns.histplot(data[col], kde=True)
+        plt.title(f"Histogram for {col}")
+        plt.xlabel(col)  # Proper label for x-axis
+        plt.ylabel("Count")  # Label for y-axis
         st.pyplot(plt)
-
-    # Histograms for Numeric Columns
-    if st.sidebar.checkbox("Show Histograms"):
-        st.subheader("Histograms")
-        numeric_cols = data.select_dtypes(include=["float", "int"]).columns
-        for col in numeric_cols:
-            plt.figure(figsize=(8, 4))
-            sns.histplot(data[col], kde=True)
-            plt.title(f"Histogram for {col}")
-            st.pyplot(plt)
