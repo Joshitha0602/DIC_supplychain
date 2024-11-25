@@ -11,17 +11,26 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 st.title("Data Analysis and Machine Learning App")
 
-# File uploader
-# File uploader without chardet
 uploaded_file = st.file_uploader("Upload your dataset (CSV format)", type="csv")
 if uploaded_file is not None:
     try:
-        # Attempt to read the CSV file with a common encoding
+        # Attempt to read the CSV file
         data_info = pd.read_csv(uploaded_file, encoding="ISO-8859-1", errors="replace")
         st.write("Dataset Preview:")
         st.dataframe(data_info.head())
+
+        # Proceed only if `data_info` is not empty
+        if not data_info.empty:
+            # Data Cleaning Example
+            missing_values = data_info.isnull().sum()
+            st.write("Missing Values:")
+            st.write(missing_values)
+        else:
+            st.error("Uploaded dataset is empty. Please check your file.")
     except Exception as e:
         st.error(f"Error reading the file: {e}")
+else:
+    st.warning("Please upload a dataset to proceed.")
 
 
         # Data Cleaning
