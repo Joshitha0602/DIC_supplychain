@@ -100,7 +100,7 @@ if st.sidebar.checkbox("Show Correlation Heatmap"):
         st.write("No numeric columns available for correlation heatmap.")
 
     
-    # Histograms for Numeric Columns Only
+    # Histograms with Column Names as Titles
 if st.sidebar.checkbox("Show Histograms"):
     st.subheader("Histograms")
     
@@ -111,9 +111,9 @@ if st.sidebar.checkbox("Show Histograms"):
         for col in numeric_cols:
             plt.figure(figsize=(8, 4))
             sns.histplot(data[col], kde=True)
-            plt.title(f"Histogram for {col}")
-            plt.xlabel(col)
-            plt.ylabel("Count")
+            plt.title(f"Distribution of {col}")  # Use column name as the title
+            plt.xlabel(col)  # Use column name for x-axis
+            plt.ylabel("Count")  # Y-axis label remains "Count"
             st.pyplot(plt)
     else:
         st.write("No numeric columns available for histograms.")
