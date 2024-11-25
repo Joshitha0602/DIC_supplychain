@@ -9,8 +9,12 @@ st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
 # Function to load data
 @st.cache
 def load_data(file):
-    data = pd.read_csv(file)
+    try:
+        data = pd.read_csv(file, encoding="utf-8")  # Default to UTF-8
+    except UnicodeDecodeError:
+        data = pd.read_csv(file, encoding="ISO-8859-1")  # Fallback to ISO-8859-1
     return data
+
 
 # Sidebar for file upload
 st.sidebar.title("Upload Dataset")
