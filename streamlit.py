@@ -2,121 +2,121 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.cluster import KMeans
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.neighbors import KNeighborsClassifier
 
-# Page Configuration
-st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
+# Streamlit App
+st.title("Generalized Data Analysis App")
 
-# Function to load data
-@st.cache
-def load_data(file):
-    try:
-        data = pd.read_csv(file, encoding="utf-8")  # Default to UTF-8
-    except UnicodeDecodeError:
-        data = pd.read_csv(file, encoding="ISO-8859-1")  # Fallback to ISO-8859-1
-    return data
+# Upload Dataset
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+if uploaded_file is not None:
+    # Load the dataset
+    df = pd.read_csv(uploaded_file)
+    st.write("Dataset Preview:", df.head())
 
+    # Cleaning Step 1: Handling Missing Values
+    st.subheader("Cleaning: Handling Missing Values")
+    st.write("Missing values in each column:")
+    missing_values = df.isnull().sum()
+    st.write(missing_values[missing_values > 0])
 
-# Sidebar for file upload
-st.sidebar.title("Upload Dataset")
-uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
+    drop_cols = st.multiselect("Select columns to drop (if any)", df.columns)
+    df = df.drop(columns=drop_cols, errors='ignore')
+    df = df.dropna()  # Dropping rows with missing values
+    st.write("Cleaned Dataset Preview:", df.head())
 
-if uploaded_file:
-    data = load_data(uploaded_file).copy()
-    st.title("Uploaded Dataset")
-    st.write(data.head())
+    # Cleaning Step 2: Removing Duplicates
+    st.subheader("Cleaning: Removing Duplicates")
+    st.write(f"Duplicate rows: {df.duplicated().sum()}")
+    df = df.drop_duplicates()
+    st.write(f"Remaining rows after removing duplicates: {len(df)}")
 
-    # Data Overview
-    st.header("Dataset Overview")
-    st.write("Shape of dataset:", data.shape)
-    st.write("Data types and missing values:")
-    st.write(data.info())
-    st.write("Summary statistics:")
-    st.write(data.describe())
+    # Cleaning Step 3: Standardizing Column Names
+    st.subheader("Cleaning: Standardizing Column Names")
+    df.columns = df.columns.str.lower().str.replace(" ", "_")
+    st.write("Standardized Column Names:", df.columns.tolist())
 
-    # Missing Values
-    st.subheader("Missing Value Analysis")
-    missing_values = data.isnull().sum()
-    missing_percentage = (missing_values / len(data)) * 100
-    missing_df = pd.DataFrame({
-        "Missing Values": missing_values,
-        "Percentage": missing_percentage
-    }).sort_values(by="Missing Values", ascending=False)
-    st.write(missing_df)
+    # EDA Step 1: Descriptive Statistics
+    st.subheader("EDA: Descriptive Statistics")
+    st.write(df.describe())
 
-    # Drop columns with all missing values
-    if st.sidebar.checkbox("Drop Columns with All Missing Values"):
-        data = data.dropna(axis=1, how="all")
-        st.write("Updated dataset after dropping columns with all missing values:")
-        st.write(data.head())
-
-    # Drop rows with missing values
-    if st.sidebar.checkbox("Drop Rows with Missing Values"):
-        data = data.dropna()
-        st.write("Updated dataset after dropping rows with missing values:")
-        st.write(data.head())
-
-    # Data Cleaning Options
-    st.sidebar.header("Data Cleaning")
-    columns_to_drop = st.sidebar.multiselect("Select Columns to Drop", data.columns)
-    if columns_to_drop:
-        data = data.drop(columns=columns_to_drop)
-        st.write(f"Dropped Columns: {columns_to_drop}")
-        st.write("Updated Dataset:")
-        st.write(data.head())
-
-    # Normalize Text Columns
-    st.sidebar.header("Text Normalization")
-    text_columns = st.sidebar.multiselect("Select Text Columns to Normalize", data.columns)
-    if text_columns:
-        for col in text_columns:
-            data[col] = data[col].str.lower().str.strip()
-        st.write("Text normalization applied to columns:")
-        st.write(text_columns)
-
-    # Visualizations
-    st.header("Visualizations")
-
-    # Correlation Heatmap with Proper Row/Column Names
-if st.sidebar.checkbox("Show Correlation Heatmap"):
-    st.subheader("Correlation Heatmap")
-
-    # Select only numeric columns
-    numeric_data = data.select_dtypes(include=["int64", "float64"])
-    
-    if not numeric_data.empty:
-        corr = numeric_data.corr()
+    # EDA Step 2: Correlation Heatmap
+    st.subheader("EDA: Correlation Heatmap")
+    numeric_cols = df.select_dtypes(include=['float', 'int']).columns
+    if len(numeric_cols) > 1:
+        correlation_matrix = df[numeric_cols].corr()
         plt.figure(figsize=(10, 6))
-        sns.heatmap(
-            corr,
-            annot=True,  # Annotate with correlation values
-            cmap="coolwarm",
-            fmt=".2f",
-            xticklabels=numeric_data.columns,  # Use column names for x-axis
-            yticklabels=numeric_data.columns   # Use column names for y-axis
-        )
-        plt.title("Correlation Heatmap with Column Names")
-        st.pyplot(plt)
-    else:
-        st.write("No numeric columns available for correlation heatmap.")
+        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm")
+        st.pyplot(plt.gcf())
 
-    
-    # Histograms with Row Names as Titles
-if st.sidebar.checkbox("Show Histograms"):
-    st.subheader("Histograms")
-    
-    # Select only numeric columns
-    numeric_cols = data.select_dtypes(include=["int64", "float64"]).columns
+    # EDA Step 3: Histogram of Numerical Features
+    st.subheader("EDA: Histograms of Numerical Features")
+    for col in numeric_cols:
+        plt.figure()
+        df[col].hist(bins=20, color='blue', alpha=0.7)
+        plt.title(f"Histogram for {col}")
+        st.pyplot(plt.gcf())
 
-    if not numeric_cols.empty:
-        for col in numeric_cols:
-            plt.figure(figsize=(8, 4))
-            sns.histplot(data[col], kde=True)
-            # Dynamically set title using row (column) names
-            plt.title(f"Distribution of {col}", fontsize=14)  # Column name as the title
-            plt.xlabel(col, fontsize=12)  # Column name as x-axis label
-            plt.ylabel("Frequency", fontsize=12)  # Consistent y-axis label
-            plt.tight_layout()
-            st.pyplot(plt)
-    else:
-        st.write("No numeric columns available for histograms.")
+    # Model Training: Linear Regression
+    st.subheader("Modeling: Linear Regression")
+    features = st.multiselect("Select Features for Linear Regression", numeric_cols)
+    target = st.selectbox("Select Target for Linear Regression", numeric_cols)
+    if features and target:
+        X = df[features]
+        y = df[target]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+        lr_model = LinearRegression()
+        lr_model.fit(X_train, y_train)
+        y_pred = lr_model.predict(X_test)
+
+        st.write("Model Coefficients:", lr_model.coef_)
+        st.write("Model Intercept:", lr_model.intercept_)
+
+        plt.scatter(X_test.iloc[:, 0], y_test, color='blue', label='Actual')
+        plt.scatter(X_test.iloc[:, 0], y_pred, color='red', label='Predicted')
+        plt.title("Linear Regression: Actual vs Predicted")
+        plt.legend()
+        st.pyplot(plt.gcf())
+
+    # Clustering: KMeans
+    st.subheader("Clustering: K-Means")
+    cluster_features = st.multiselect("Select Features for K-Means Clustering", numeric_cols)
+    if cluster_features:
+        X_cluster = df[cluster_features]
+        kmeans = KMeans(n_clusters=3, random_state=42)
+        df['cluster'] = kmeans.fit_predict(X_cluster)
+
+        st.write("Cluster Labels:", df['cluster'].value_counts())
+
+        plt.scatter(X_cluster.iloc[:, 0], X_cluster.iloc[:, 1], c=df['cluster'], cmap='viridis')
+        plt.title("K-Means Clustering")
+        plt.xlabel(cluster_features[0])
+        plt.ylabel(cluster_features[1])
+        st.pyplot(plt.gcf())
+
+    # Classification: K-Nearest Neighbors (KNN)
+    st.subheader("Classification: K-Nearest Neighbors")
+    knn_features = st.multiselect("Select Features for KNN", numeric_cols)
+    knn_target = st.selectbox("Select Target for KNN", numeric_cols)
+    if knn_features and knn_target:
+        X_knn = df[knn_features]
+        y_knn = df[knn_target]
+        X_train, X_test, y_train, y_test = train_test_split(X_knn, y_knn, test_size=0.2, random_state=42)
+
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(X_train, y_train)
+        y_pred = knn.predict(X_test)
+
+        st.write("Confusion Matrix:")
+        st.write(confusion_matrix(y_test, y_pred))
+        st.write("Classification Report:")
+        st.write(classification_report(y_test, y_pred))
+
+        plt.scatter(X_test.iloc[:, 0], X_test.iloc[:, 1], c=y_pred, cmap='coolwarm', marker='o')
+        plt.title("KNN Predictions")
+        st.pyplot(plt.gcf())
