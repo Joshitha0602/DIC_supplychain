@@ -13,132 +13,104 @@ from sklearn.ensemble import RandomForestClassifier
 
 st.title("Data Analysis and Machine Learning Application")
 
-# Sidebar for uploading the file
-uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type="csv")
+# Page configuration
+st.set_page_config(page_title="Data Cleaning Demo", layout="wide")
+
+# Function to load data
+@st.cache
+def load_data(file):
+    data = pd.read_csv(file)
+    return data
+
+# Sidebar for file upload
+st.sidebar.title("Upload Dataset")
+uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type="csv")
+
 if uploaded_file:
-    try:
-        # Attempt to read with UTF-8 encoding
-        data = pd.read_csv(uploaded_file)
-    except UnicodeDecodeError:
-        # Fallback to ISO-8859-1 if UTF-8 fails
-        data = pd.read_csv(uploaded_file, encoding='ISO-8859-1')
-
-    st.write("### Raw Data")
+    data = load_data(uploaded_file).copy()
+    st.title("Uploaded Dataset")
     st.write(data.head())
-
-    # Step 1: Data Cleaning
-    st.write("## Data Cleaning")
+# Data Cleaning
+    st.subheader("Data Cleaning")
+    missing_values = data.isnull().sum()
+    st.write("Missing Values:")
+    st.write(missing_values[missing_values > 0])
     
-    # Dropping unnecessary columns
-    drop_cols = st.sidebar.multiselect(
-        "Select columns to drop", data.columns, default=[]
-    )
-    data.drop(columns=drop_cols, inplace=True)
+    # Dropping unnecessary columns (user-defined)
+    drop_columns = st.sidebar.multiselect("Select columns to drop", data.columns)
+    if drop_columns:
+        data.drop(columns=drop_columns, inplace=True)
+        st.write(f"Columns dropped: {drop_columns}")
 
-    # Handling missing values
-    if st.sidebar.checkbox("Drop rows with missing values"):
-        data.dropna(inplace=True)
+    # Handle duplicates
+    if st.sidebar.checkbox("Remove Duplicates"):
+        data.drop_duplicates(inplace=True)
+        st.write("Duplicates removed")
 
-    # Normalizing column names
-    data.columns = data.columns.str.lower().str.replace(" ", "_")
-    st.write("Cleaned Data", data.head())
+    # Convert date columns
+    date_columns = st.sidebar.multiselect("Select date columns to convert", data.columns)
+    for col in date_columns:
+        data[col] = pd.to_datetime(data[col], errors='coerce')
+        st.write(f"Converted {col} to datetime")
 
-    # Step 2: Exploratory Data Analysis
-    st.write("## Exploratory Data Analysis")
+    # Normalizing text columns
+    text_columns = st.sidebar.multiselect("Select text columns to normalize", data.columns)
+    for col in text_columns:
+        data[col] = data[col].str.lower().str.strip()
+        st.write(f"Normalized text in {col}")
 
-    if st.sidebar.checkbox("Display descriptive statistics"):
-        st.write(data.describe())
+    # Data Overview Post Cleaning
+    st.subheader("Data Overview Post Cleaning")
+    st.write(data.describe())
 
-    if st.sidebar.checkbox("Show correlation heatmap"):
+    # Visualizations
+    st.header("Visualizations")
+
+    # Heatmap
+    if st.sidebar.checkbox("Show Correlation Heatmap"):
+        st.subheader("Correlation Heatmap")
+        corr = data.corr()
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(corr, annot=True, cmap='coolwarm')
+        st.pyplot(plt)
+
+    # Histograms
+    if st.sidebar.checkbox("Show Histograms"):
+        st.subheader("Histograms")
         numeric_cols = data.select_dtypes(include=[np.number]).columns
-        correlation_matrix = data[numeric_cols].corr()
-        plt.figure(figsize=(10, 6))
-        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm")
-        st.pyplot(plt)
+        for col in numeric_cols:
+            plt.figure()
+            sns.histplot(data[col], kde=True)
+            plt.title(f"Distribution of {col}")
+            st.pyplot(plt)
 
-    if st.sidebar.checkbox("Show histograms"):
-        data.hist(bins=20, figsize=(15, 10))
-        st.pyplot(plt)
+    # Modeling (Linear Regression Example)
+    st.header("Modeling")
+    target = st.sidebar.selectbox("Select target variable", data.columns)
+    features = st.sidebar.multiselect("Select feature variables", data.columns)
 
-    # Step 3: Machine Learning Models
-    st.write("## Machine Learning Models")
+    if target and features:
+        st.subheader("Linear Regression Model")
+        X = data[features]
+        y = data[target]
 
-    model_option = st.sidebar.selectbox(
-        "Choose a model",
-        [
-            "Linear Regression",
-            "KMeans Clustering",
-            "Logistic Regression",
-            "Decision Tree",
-            "Random Forest",
-            "Support Vector Machine (SVM)",
-        ],
-    )
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = LinearRegression()
+        model.fit(X_train, y_train)
 
-    if model_option == "Linear Regression":
-        st.write("### Linear Regression")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
-        if features and target:
-            X = data[features]
-            Y = data[target]
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=0.2, random_state=42
-            )
-            model = LinearRegression()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write(f"R² Score: {model.score(X_test, Y_test)}")
+        # Predictions
+        y_pred = model.predict(X_test)
 
-    if model_option == "KMeans Clustering":
-        st.write("### KMeans Clustering")
-        cluster_features = st.sidebar.multiselect("Select clustering features", data.columns)
-        if cluster_features:
-            X = data[cluster_features]
-            num_clusters = st.sidebar.slider("Number of clusters", 2, 10, 3)
-            model = KMeans(n_clusters=num_clusters)
-            data["Cluster"] = model.fit_predict(X)
-            st.write("Clustered Data", data.head())
+        st.write("Model Coefficients:")
+        st.write(model.coef_)
+        st.write("R² Score:")
+        st.write(model.score(X_test, y_test))
 
-    if model_option == "Random Forest":
-        st.write("### Random Forest Classifier")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
-        if features and target:
-            X = data[features]
-            Y = data[target]
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=0.2, random_state=42
-            )
-            model = RandomForestClassifier()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write("Classification Report")
-            st.text(classification_report(Y_test, predictions))
-            st.write(f"Accuracy: {model.score(X_test, Y_test):.2f}")
-
-    if model_option == "Support Vector Machine (SVM)":
-        st.write("### Support Vector Machine")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
-        if features and target:
-            X = data[features]
-            Y = data[target]
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X_scaled, Y, test_size=0.2, random_state=42
-            )
-            model = LinearSVC()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write(f"Accuracy: {model.score(X_test, Y_test):.2f}")
-
-    # General visualization
-    st.write("### General Visualization")
-    x_col = st.sidebar.selectbox("Select X-axis column", data.columns)
-    y_col = st.sidebar.selectbox("Select Y-axis column", data.columns)
-    if x_col and y_col:
-        plt.figure(figsize=(10, 6))
-        sns.scatterplot(data=data, x=x_col, y=y_col)
+        # Visualization
+        plt.figure()
+        plt.scatter(y_test, y_pred)
+        plt.xlabel("Actual")
+        plt.ylabel("Predicted")
+        plt.title("Actual vs Predicted")
         st.pyplot(plt)
