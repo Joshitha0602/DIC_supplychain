@@ -6,133 +6,118 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.cluster import KMeans
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 
-st.title("Data Analysis and Machine Learning Application")
+# Title and file upload
+st.title("Streamlit Application for Data Analysis and Machine Learning")
+uploaded_file = st.file_uploader("Upload your dataset (CSV format)", type="csv")
 
-# Sidebar for uploading the file
-uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type="csv")
 if uploaded_file:
+    # Load the dataset
     data = pd.read_csv(uploaded_file)
-    st.write("### Raw Data")
+    st.write("Preview of the Dataset:")
     st.write(data.head())
+    st.write(f"Shape: {data.shape}")
 
-    # Step 1: Data Cleaning
-    st.write("## Data Cleaning")
-    
-    # Dropping unnecessary columns
-    drop_cols = st.sidebar.multiselect(
-        "Select columns to drop", data.columns, default=[]
-    )
-    data.drop(columns=drop_cols, inplace=True)
+    # Data cleaning options
+    st.sidebar.header("Data Cleaning")
+    if st.sidebar.checkbox("Check for Missing Values"):
+        missing_values = data.isnull().sum()
+        st.write("Missing Values in Each Column:")
+        st.write(missing_values[missing_values > 0])
 
-    # Handling missing values
-    if st.sidebar.checkbox("Drop rows with missing values"):
-        data.dropna(inplace=True)
+    if st.sidebar.checkbox("Drop Columns with High Missing Values"):
+        threshold = st.sidebar.slider("Missing Value Threshold (%)", 0, 100, 50)
+        cols_to_drop = [col for col in data.columns if data[col].isnull().mean() * 100 > threshold]
+        data = data.drop(columns=cols_to_drop)
+        st.write("Dropped columns:", cols_to_drop)
+        st.write("Updated Dataset Shape:", data.shape)
 
-    # Normalizing column names
-    data.columns = data.columns.str.lower().str.replace(" ", "_")
-    st.write("Cleaned Data", data.head())
-
-    # Step 2: Exploratory Data Analysis
-    st.write("## Exploratory Data Analysis")
-
-    if st.sidebar.checkbox("Display descriptive statistics"):
+    # Exploratory Data Analysis
+    st.sidebar.header("EDA")
+    if st.sidebar.checkbox("Descriptive Statistics"):
+        st.write("Descriptive Statistics:")
         st.write(data.describe())
 
-    if st.sidebar.checkbox("Show correlation heatmap"):
-        numeric_cols = data.select_dtypes(include=[np.number]).columns
-        correlation_matrix = data[numeric_cols].corr()
-        plt.figure(figsize=(10, 6))
-        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm")
-        st.pyplot(plt)
+    if st.sidebar.checkbox("Correlation Heatmap"):
+        numeric_cols = data.select_dtypes(include=['float64', 'int64']).columns
+        if numeric_cols.any():
+            st.write("Correlation Heatmap:")
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(data[numeric_cols].corr(), annot=True, cmap='coolwarm')
+            st.pyplot()
 
-    if st.sidebar.checkbox("Show histograms"):
-        data.hist(bins=20, figsize=(15, 10))
-        st.pyplot(plt)
-
-    # Step 3: Machine Learning Models
-    st.write("## Machine Learning Models")
-
-    model_option = st.sidebar.selectbox(
-        "Choose a model",
-        [
-            "Linear Regression",
-            "KMeans Clustering",
-            "Logistic Regression",
-            "Decision Tree",
-            "Random Forest",
-            "Support Vector Machine (SVM)",
-        ],
-    )
-
-    if model_option == "Linear Regression":
-        st.write("### Linear Regression")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
+    # Machine Learning Options
+    st.sidebar.header("Machine Learning")
+    ml_task = st.sidebar.selectbox("Select ML Task", ["Linear Regression", "K-Means Clustering", "Random Forest", "LinearSVC"])
+    
+    if ml_task == "Linear Regression":
+        st.subheader("Linear Regression")
+        features = st.multiselect("Select Features", options=data.columns)
+        target = st.selectbox("Select Target", options=data.columns)
         if features and target:
             X = data[features]
-            Y = data[target]
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=0.2, random_state=42
-            )
+            y = data[target]
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             model = LinearRegression()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write(f"R² Score: {model.score(X_test, Y_test)}")
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            st.write("R² Score:", model.score(X_test, y_test))
+            plt.scatter(X_test.iloc[:, 0], y_test, color='yellow')
+            plt.plot(X_test.iloc[:, 0], y_pred, color='blue')
+            plt.title("Linear Regression")
+            st.pyplot()
 
-    if model_option == "KMeans Clustering":
-        st.write("### KMeans Clustering")
-        cluster_features = st.sidebar.multiselect("Select clustering features", data.columns)
-        if cluster_features:
-            X = data[cluster_features]
-            num_clusters = st.sidebar.slider("Number of clusters", 2, 10, 3)
-            model = KMeans(n_clusters=num_clusters)
-            data["Cluster"] = model.fit_predict(X)
-            st.write("Clustered Data", data.head())
+    elif ml_task == "K-Means Clustering":
+        st.subheader("K-Means Clustering")
+        features = st.multiselect("Select Features", options=data.columns)
+        clusters = st.slider("Select Number of Clusters", 2, 10, 3)
+        if features:
+            X = data[features]
+            model = KMeans(n_clusters=clusters, random_state=42)
+            data['Cluster'] = model.fit_predict(X)
+            st.write("Cluster Assignments:")
+            st.write(data['Cluster'])
+            plt.scatter(X.iloc[:, 0], X.iloc[:, 1], c=data['Cluster'], cmap='viridis')
+            plt.title("K-Means Clustering")
+            st.pyplot()
 
-    if model_option == "Random Forest":
-        st.write("### Random Forest Classifier")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
+    elif ml_task == "Random Forest":
+        st.subheader("Random Forest")
+        features = st.multiselect("Select Features", options=data.columns)
+        target = st.selectbox("Select Target", options=data.columns)
         if features and target:
             X = data[features]
-            Y = data[target]
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=0.2, random_state=42
-            )
-            model = RandomForestClassifier()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write("Classification Report")
-            st.text(classification_report(Y_test, predictions))
-            st.write(f"Accuracy: {model.score(X_test, Y_test):.2f}")
+            y = data[target]
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            model = RandomForestClassifier(random_state=42)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            st.write("Accuracy Score:", accuracy_score(y_test, y_pred))
+            st.write("Classification Report:")
+            st.text(classification_report(y_test, y_pred))
 
-    if model_option == "Support Vector Machine (SVM)":
-        st.write("### Support Vector Machine")
-        features = st.sidebar.multiselect("Select features", data.columns)
-        target = st.sidebar.selectbox("Select target", data.columns)
+    elif ml_task == "LinearSVC":
+        st.subheader("Linear SVC")
+        features = st.multiselect("Select Features", options=data.columns)
+        target = st.selectbox("Select Target", options=data.columns)
         if features and target:
             X = data[features]
-            Y = data[target]
+            y = data[target]
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X_scaled, Y, test_size=0.2, random_state=42
-            )
-            model = LinearSVC()
-            model.fit(X_train, Y_train)
-            predictions = model.predict(X_test)
-            st.write(f"Accuracy: {model.score(X_test, Y_test):.2f}")
+            X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+            model = LinearSVC(dual=False, max_iter=5000, random_state=42)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            st.write("Accuracy Score:", accuracy_score(y_test, y_pred))
+            plt.scatter(X_test[:, 0], X_test[:, 1], c=y_pred, cmap='Reds', edgecolor='k', s=100)
+            plt.title("LinearSVC Classification")
+            st.pyplot()
 
-    # General visualization
-    st.write("### General Visualization")
-    x_col = st.sidebar.selectbox("Select X-axis column", data.columns)
-    y_col = st.sidebar.selectbox("Select Y-axis column", data.columns)
-    if x_col and y_col:
-        plt.figure(figsize=(10, 6))
-        sns.scatterplot(data=data, x=x_col, y=y_col)
-        st.pyplot(plt)
+# Footer
+st.write("App developed for generalized data analysis and machine learning tasks.")
